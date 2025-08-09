@@ -22,13 +22,13 @@ source(RLAdjust.dir .. "scripts/AnimalPregnancyOverride.lua")
 
 function RLAdjust.new(customMt)
     local self = setmetatable({}, customMt or RLAdjust_mt)
-    
+
     return self
 end
 
 function RLAdjust:checkRealisticLivestockAnimal()
     RmUtils.logInfo("Checking for FS25_RealisticLivestock.Animal...")
-    
+
     if _G.FS25_RealisticLivestock and _G.FS25_RealisticLivestock.Animal and _G.FS25_RealisticLivestock.Animal.getName then
         RmUtils.logInfo("FS25_RealisticLivestock.Animal.getName found")
         return true
@@ -40,16 +40,17 @@ end
 
 function RLAdjust:checkAnimalScreenControllers()
     RmUtils.logInfo("Checking for animal screen controllers...")
-    
-    local controllers = {"AnimalScreenDealer", "AnimalScreenDealerFarm", "AnimalScreenDealerTrailer", "AnimalScreenTrailer", "AnimalScreenTrailerFarm"}
+
+    local controllers = { "AnimalScreenDealer", "AnimalScreenDealerFarm", "AnimalScreenDealerTrailer",
+        "AnimalScreenTrailer", "AnimalScreenTrailerFarm" }
     local foundCount = 0
-    
+
     for _, controllerName in ipairs(controllers) do
         if _G[controllerName] then
             foundCount = foundCount + 1
         end
     end
-    
+
     if foundCount > 0 then
         RmUtils.logInfo(string.format("Found %d/%d animal screen controllers", foundCount, #controllers))
         return true
@@ -59,12 +60,11 @@ function RLAdjust:checkAnimalScreenControllers()
     end
 end
 
-
 function RLAdjust:initialize()
     -- Check for required dependencies
     self.hasRealisticLivestockAnimal = self:checkRealisticLivestockAnimal()
     self.hasAnimalScreenControllers = self:checkAnimalScreenControllers()
-    
+
     -- Load adjustments only if dependencies are available
     if self.hasRealisticLivestockAnimal then
         RmUtils.logInfo("Loading animal adjustments...")
@@ -86,17 +86,16 @@ end
 
 function RLAdjust:deleteMap()
     RmUtils.logInfo("Unloading map")
-    
+
     -- Cleanup overrides
     if AnimalNameOverride and AnimalNameOverride.delete then
         AnimalNameOverride.delete()
     end
-    
+
     if AnimalPregnancyOverride and AnimalPregnancyOverride.delete then
         AnimalPregnancyOverride.delete()
     end
 end
-
 
 -- Global mod instance
 g_rlAdjust = RLAdjust.new()
