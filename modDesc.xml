@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8" standalone="no" ?>
+<modDesc descVersion="100">
+    <author>Ritter</author>
+    <version>0.0.2.0</version>
+    <title>
+        <en>Realistic Livestock Adjustments</en>
+    </title>
+    <description>
+        <en>Adjustments for the Realistic Livestock mod. Can fail at any time! Do not use!</en>
+    </description>
+    <multiplayer supported="false" />
+    <extraSourceFiles>
+        <sourceFile filename="scripts/main.lua" />
+    </extraSourceFiles>
+</modDesc>
