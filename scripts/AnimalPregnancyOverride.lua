@@ -86,7 +86,7 @@ local function overrideCreatePregnancy()
                     #eligibleFathers,
                     self.farmId .. " " .. self.uniqueId))
             else
-                RmUtils.logWarning(string.format("No eligible fathers found for %s, using default father", 
+                RmUtils.logInfo(string.format("No eligible fathers found for %s, using default father", 
                     self.farmId .. " " .. self.uniqueId))
             end
             

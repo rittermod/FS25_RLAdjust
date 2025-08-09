@@ -87,7 +87,7 @@ local function setAnimalNameWithGenetics(animal, context, currentName)
     if string.find(currentName, "^%[") then
         -- Remove pattern like "[85-85:73:99:97] " from the beginning
         cleanName = string.gsub(currentName, "^%[[%d]+%-[%d%:]+%] ?", "")
-        RmUtils.logDebug(string.format("Removed existing quality from: '%s', clean name: '%s'", currentName, cleanName))
+        RmUtils.logTrace(string.format("Removed existing quality from: '%s', clean name: '%s'", currentName, cleanName))
     end
     
     -- Add new genetics quality
@@ -97,7 +97,7 @@ local function setAnimalNameWithGenetics(animal, context, currentName)
         animal.name = string.format("[%s]", qualityValue)
     end
     
-    RmUtils.logDebug(string.format("Updated %s animal name to: '%s'", context, animal.name))
+    RmUtils.logTrace(string.format("Updated %s animal name to: '%s'", context, animal.name))
     return true
 end
 
