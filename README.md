@@ -32,14 +32,8 @@ This mod changes the Realistic Livestock experience by adding:
   - Offspring traits can be lower or higher than parents, allowing for more genetic diversity
   - Fine-tune if you want to adjust the level of genetic variation
 
-### Debug Features
-- Comprehensive logging system for troubleshooting
-- Dependency checking on mod load
-- Clear error messages for missing requirements
-
 ## Development Status
 
-**Version**: 0.0.2.0  
 **Status**: Early Development - Use at your own risk!
 
 ⚠️ **Warning**: This mod can fail at any time. Do not use in important save games.
