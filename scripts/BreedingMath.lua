@@ -9,39 +9,44 @@
 BreedingMath = {}
 local BreedingMath_mt = Class(BreedingMath)
 
+-- Module constants
 -- Choose a constant within-family SD (here: 10% of range 0.25..1.75)
 BreedingMath.SD_CONST = 0.10 * (1.75 - 0.25) -- 0.15
 
--- Utility: clamp a value
+---Clamps a value between low and high bounds
+---@param x number Value to clamp
+---@param lo number Lower bound
+---@param hi number Upper bound
+---@return number Clamped value
 local function clamp(x, lo, hi)
-  if x < lo then return lo end
-  if x > hi then return hi end
-  return x
+    if x < lo then return lo end
+    if x > hi then return hi end
+    return x
 end
 
 -- Utility: standard normal RNG (Box–Muller)
 local function randn()
-  local u1, u2 = 0.0, 0.0
-  repeat u1 = math.random() until u1 > 0.0 -- avoid log(0)
-  u2 = math.random()
-  return math.sqrt(-2.0 * math.log(u1)) * math.cos(2.0 * math.pi * u2)
+    local u1, u2 = 0.0, 0.0
+    repeat u1 = math.random() until u1 > 0.0 -- avoid log(0)
+    u2 = math.random()
+    return math.sqrt(-2.0 * math.log(u1)) * math.cos(2.0 * math.pi * u2)
 end
 
 -- erf approximation (Abramowitz & Stegun 7.1.26)
 local function erf(x)
-  local sign = 1.0
-  if x < 0 then
-    sign = -1.0; x = -x
-  end
-  local t = 1.0 / (1.0 + 0.3275911 * x)
-  local a1, a2, a3, a4, a5 = 0.254829592, -0.284496736, 1.421413741, -1.453152027, 1.061405429
-  local y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * math.exp(-x * x)
-  return sign * y
+    local sign = 1.0
+    if x < 0 then
+        sign = -1.0; x = -x
+    end
+    local t = 1.0 / (1.0 + 0.3275911 * x)
+    local a1, a2, a3, a4, a5 = 0.254829592, -0.284496736, 1.421413741, -1.453152027, 1.061405429
+    local y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * math.exp(-x * x)
+    return sign * y
 end
 
 -- Standard normal CDF Φ(x)
 local function normal_cdf(x)
-  return 0.5 * (1.0 + erf(x / math.sqrt(2.0)))
+    return 0.5 * (1.0 + erf(x / math.sqrt(2.0)))
 end
 
 -- Inverse standard normal CDF Φ^{-1}(p) (Acklam's approximation)
@@ -99,17 +104,17 @@ local function sd_from_poutside(delta, p_outside)
   return delta / (2.0 * z)
 end
 
--- Main: sample offspring and report probabilities
--- params:
---   parent1, parent2 : numbers in [min_val, max_val]
---   opts (optional):
---     sd         : within-family standard deviation (overrides p_outside)
---     p_outside  : target P(child < min(parent) or child > max(parent))
---     min_val    : default 0.25
---     max_val    : default 1.75
---     clamp      : default true; clamp into [min_val, max_val]
--- returns:
---   child_value, { above_best=..., between=..., below_worst=..., sd=... }
+---Samples offspring genetics and reports probabilities
+---@param parent1 number Parent 1 genetics value in [min_val, max_val]
+---@param parent2 number Parent 2 genetics value in [min_val, max_val]
+---@param opts table|nil Optional parameters:
+---  - sd: within-family standard deviation (overrides p_outside)
+---  - p_outside: target P(child < min(parent) or child > max(parent))
+---  - min_val: default 0.25
+---  - max_val: default 1.75
+---  - clamp: default true; clamp into [min_val, max_val]
+---@return number child_value The calculated child genetics value
+---@return table probabilities Table with above_best, between, below_worst, sd values
 function BreedingMath.breedOffspring(parent1, parent2, opts)
   opts = opts or {}
   local min_val = opts.min_val or 0.25

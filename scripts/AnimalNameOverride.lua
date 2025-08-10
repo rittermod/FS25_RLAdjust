@@ -9,34 +9,55 @@
 AnimalNameOverride = {}
 local AnimalNameOverride_mt = Class(AnimalNameOverride)
 
+-- Constants for genetic value conversion (module-scoped)
+AnimalNameOverride.GENETICS_MIN = 0.25
+AnimalNameOverride.GENETICS_MAX = 1.75
+AnimalNameOverride.DISPLAY_MIN = 0
+AnimalNameOverride.DISPLAY_MAX = 99
+
 -- Store original functions for cleanup
 AnimalNameOverride.originalFunctions = {}
 
--- function to construct animal name with genetics quality
+---Constructs animal name with genetics quality information
+---@param animal table The animal object containing genetics data
+---@param context string Context identifier for logging purposes
+---@param currentName string|nil Current animal name (optional)
+---@return boolean Success status
 local function setAnimalNameWithGenetics(animal, context, currentName)
     if not animal or not animal.genetics or not animal.genetics.quality then
         return false
     end
 
-    -- Function to convert 0.25-1.75 scale to 00-99 scale (zero-padded)
+    ---Converts genetic value from 0.25-1.75 scale to 00-99 display scale (zero-padded)
+    ---@param value number|nil Genetic value to convert
+    ---@return string Formatted two-digit string
     local function scaleToNinetyNine(value)
-        if not value then return "00" end
+        if not value then
+            return "00"
+        end
+
         local num = tonumber(value)
-        if not num then return "00" end
-        -- Convert 0.25-1.75 to 0-99 and round to nearest integer
-        -- First clamp to valid range
-        num = math.min(1.75, math.max(0.25, num))
-        -- Map 0.25-1.75 range to 0-99
-        local scaled = math.floor((num - 0.25) * (99 / (1.75 - 0.25)) + 0.5)
+        if not num then
+            return "00"
+        end
+
+        -- Clamp to valid genetic range
+        num = math.min(AnimalNameOverride.GENETICS_MAX, math.max(AnimalNameOverride.GENETICS_MIN, num))
+
+        -- Map genetic range to display range
+        local range = AnimalNameOverride.GENETICS_MAX - AnimalNameOverride.GENETICS_MIN
+        local scaled = math.floor((num - AnimalNameOverride.GENETICS_MIN) * (AnimalNameOverride.DISPLAY_MAX / range) +
+            0.5)
         return string.format("%02d", scaled)
     end
 
     -- Calculate overall quality as average of all traits (before scaling)
-    local traitValues = {}
-    table.insert(traitValues, tonumber(animal.genetics.health) or 0)
-    table.insert(traitValues, tonumber(animal.genetics.fertility) or 0)
-    table.insert(traitValues, tonumber(animal.genetics.quality) or 0)
-    table.insert(traitValues, tonumber(animal.genetics.metabolism) or 0)
+    local traitValues = {
+        tonumber(animal.genetics.health) or 0,
+        tonumber(animal.genetics.fertility) or 0,
+        tonumber(animal.genetics.quality) or 0,
+        tonumber(animal.genetics.metabolism) or 0
+    }
 
     if animal.genetics.productivity then
         table.insert(traitValues, tonumber(animal.genetics.productivity) or 0)
@@ -101,98 +122,113 @@ local function setAnimalNameWithGenetics(animal, context, currentName)
     return true
 end
 
--- Create a generic function to add genetics to target items
+---Adds genetics information to target items in animal screens
+---@param self table The controller instance
+---@param _ any Unused parameter from appended function
 local function addGeneticsToTargetItems(self, _)
-    if self.targetItems then
-        RmUtils.logDebug(string.format("Modifying %d target items with genetics info", #self.targetItems))
+    if not self.targetItems then
+        return
+    end
 
-        for _, item in ipairs(self.targetItems) do
-            local animal = item.animal or item.cluster
-            setAnimalNameWithGenetics(animal, "target")
-        end
+    RmUtils.logDebug(string.format("Modifying %d target items with genetics info", #self.targetItems))
+
+    for _, item in ipairs(self.targetItems) do
+        local animal = item.animal or item.cluster
+        setAnimalNameWithGenetics(animal, "target")
     end
 end
 
--- Create a generic function to add genetics to source items
+---Adds genetics information to source items in animal screens
+---@param self table The controller instance
+---@param _ any Unused parameter from appended function
 local function addGeneticsToSourceItems(self, _)
-    if self.sourceItems then
-        RmUtils.logDebug(string.format("Modifying %d source items with genetics info", #self.sourceItems))
+    if not self.sourceItems then
+        return
+    end
 
-        for key, item in pairs(self.sourceItems) do
-            RmUtils.logTrace(string.format("Processing source item %s: %s", tostring(key), tostring(item)))
+    RmUtils.logDebug(string.format("Modifying %d source items with genetics info", #self.sourceItems))
 
-            -- Check if this item is a nested table containing multiple animals
-            if type(item) == "table" then
-                -- Try to process as nested structure first
-                for subKey, subItem in pairs(item) do
-                    if type(subKey) == "number" and type(subItem) == "table" then
-                        RmUtils.logTrace(string.format("Processing nested animal %s: %s", tostring(subKey),
-                            tostring(subItem)))
-                        local animal = subItem.animal or subItem.cluster or subItem
-                        setAnimalNameWithGenetics(animal, "nested source")
-                    end
+    for key, item in pairs(self.sourceItems) do
+        RmUtils.logTrace(string.format("Processing source item %s: %s", tostring(key), tostring(item)))
+
+        -- Check if this item is a nested table containing multiple animals
+        if type(item) == "table" then
+            -- Try to process as nested structure first
+            for subKey, subItem in pairs(item) do
+                if type(subKey) == "number" and type(subItem) == "table" then
+                    RmUtils.logTrace(string.format("Processing nested animal %s: %s", tostring(subKey), tostring(subItem)))
+                    local animal = subItem.animal or subItem.cluster or subItem
+                    setAnimalNameWithGenetics(animal, "nested source")
                 end
-
-                -- Also try to process the item itself (in case it's a direct animal)
-                -- not sure if this is needed, but keeping for safety
-                local animal = item.animal or item.cluster or item
-                setAnimalNameWithGenetics(animal, "direct source")
             end
+
+            -- Also try to process the item itself (in case it's a direct animal)
+            -- Note: Not sure if this is needed, but keeping for safety
+            local animal = item.animal or item.cluster or item
+            setAnimalNameWithGenetics(animal, "direct source")
         end
     end
 end
 
--- Override the FS25_RealisticLivestock Animal getName function
+---Overrides the FS25_RealisticLivestock Animal getName function to include genetics
 local function overrideAnimalGetName()
-    if _G.FS25_RealisticLivestock and _G.FS25_RealisticLivestock.Animal and _G.FS25_RealisticLivestock.Animal.getName then
-        -- Store original function for cleanup
-        AnimalNameOverride.originalFunctions.animalGetName = _G.FS25_RealisticLivestock.Animal.getName
+    local realisticLivestock = _G.FS25_RealisticLivestock
+    if not realisticLivestock or not realisticLivestock.Animal or not realisticLivestock.Animal.getName then
+        RmUtils.logWarning("FS25_RealisticLivestock.Animal.getName not available for override")
+        return
+    end
 
-        _G.FS25_RealisticLivestock.Animal.getName = function(self)
-            -- Call original getName to get the base name
-            local originalName = AnimalNameOverride.originalFunctions.animalGetName(self)
+    -- Store original function for cleanup
+    AnimalNameOverride.originalFunctions.animalGetName = realisticLivestock.Animal.getName
 
-            -- Check if this animal has genetics and apply formatting
-            if self.genetics and self.genetics.quality then
-                -- Use our reusable function to set the name with genetics, passing the original name
-                setAnimalNameWithGenetics(self, "getName", originalName)
-                return self.name or originalName
-            end
+    realisticLivestock.Animal.getName = function(self)
+        -- Call original getName to get the base name
+        local originalName = AnimalNameOverride.originalFunctions.animalGetName(self)
 
-            return originalName
+        -- Check if this animal has genetics and apply formatting
+        if self.genetics and self.genetics.quality then
+            -- Use our reusable function to set the name with genetics, passing the original name
+            setAnimalNameWithGenetics(self, "getName", originalName)
+            return self.name or originalName
         end
 
-        RmUtils.logInfo("FS25_RealisticLivestock.Animal.getName override applied successfully")
-    else
-        RmUtils.logWarning("FS25_RealisticLivestock.Animal.getName not available for override")
+        return originalName
     end
+
+    RmUtils.logInfo("FS25_RealisticLivestock.Animal.getName override applied successfully")
 end
 
--- Utility function to hook genetics modification functions to animal screen controllers
+---Hooks genetics modification functions to animal screen controllers
+---@param controllers table List of controller names to hook
+---@param targetFunc function Function to append to initTargetItems
+---@param sourceFunc function Function to append to initSourceItems
 local function hookControllerFunctions(controllers, targetFunc, sourceFunc)
     for _, controllerName in ipairs(controllers) do
         local controller = _G[controllerName]
+        if controller then
+            -- Hook initTargetItems
+            if controller.initTargetItems then
+                controller.initTargetItems = Utils.appendedFunction(controller.initTargetItems, targetFunc)
+                RmUtils.logInfo(string.format("%s.initTargetItems appended function applied successfully", controllerName))
+            else
+                RmUtils.logWarning(string.format("%s.initTargetItems not available", controllerName))
+            end
 
-        -- Hook initTargetItems
-        if controller and controller.initTargetItems then
-            controller.initTargetItems = Utils.appendedFunction(controller.initTargetItems, targetFunc)
-            RmUtils.logInfo(string.format("%s.initTargetItems appended function applied successfully", controllerName))
+            -- Hook initSourceItems
+            if controller.initSourceItems then
+                controller.initSourceItems = Utils.appendedFunction(controller.initSourceItems, sourceFunc)
+                RmUtils.logInfo(string.format("%s.initSourceItems appended function applied successfully", controllerName))
+            else
+                RmUtils.logWarning(string.format("%s.initSourceItems not available", controllerName))
+            end
         else
-            RmUtils.logWarning(string.format("%s.initTargetItems not available", controllerName))
-        end
-
-        -- Hook initSourceItems
-        if controller and controller.initSourceItems then
-            controller.initSourceItems = Utils.appendedFunction(controller.initSourceItems, sourceFunc)
-            RmUtils.logInfo(string.format("%s.initSourceItems appended function applied successfully", controllerName))
-        else
-            RmUtils.logWarning(string.format("%s.initSourceItems not available", controllerName))
+            RmUtils.logWarning(string.format("%s controller not found", controllerName))
         end
     end
 end
 
--- Hook into all the different animal screen controller classes
-local controllers = {
+-- List of animal screen controller classes to hook into
+local ANIMAL_SCREEN_CONTROLLERS = {
     "AnimalScreenDealer",
     "AnimalScreenDealerFarm",
     "AnimalScreenDealerTrailer",
@@ -200,13 +236,17 @@ local controllers = {
     "AnimalScreenTrailerFarm"
 }
 
-hookControllerFunctions(controllers, addGeneticsToTargetItems, addGeneticsToSourceItems)
+-- Apply controller hooks
+hookControllerFunctions(ANIMAL_SCREEN_CONTROLLERS, addGeneticsToTargetItems, addGeneticsToSourceItems)
 
--- Cleanup function to restore original functions
+---Cleanup function to restore original functions
 function AnimalNameOverride.delete()
     -- Restore original Animal.getName function
-    if AnimalNameOverride.originalFunctions.animalGetName and _G.FS25_RealisticLivestock and _G.FS25_RealisticLivestock.Animal then
-        _G.FS25_RealisticLivestock.Animal.getName = AnimalNameOverride.originalFunctions.animalGetName
+    local originalFunc = AnimalNameOverride.originalFunctions.animalGetName
+    local realisticLivestock = _G.FS25_RealisticLivestock
+
+    if originalFunc and realisticLivestock and realisticLivestock.Animal then
+        realisticLivestock.Animal.getName = originalFunc
         RmUtils.logInfo("Animal.getName function restored")
     end
 end

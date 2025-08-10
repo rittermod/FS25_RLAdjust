@@ -16,7 +16,8 @@ local AnimalPregnancyOverride_mt = Class(AnimalPregnancyOverride)
 -- Store original functions for cleanup
 AnimalPregnancyOverride.originalFunctions = {}
 
--- Override the FS25_RealisticLivestock Animal createPregnancy function
+---Overrides the FS25_RealisticLivestock Animal createPregnancy function
+---to use random father selection and improved genetic calculations
 local function overrideCreatePregnancy()
     if _G.FS25_RealisticLivestock and _G.FS25_RealisticLivestock.Animal and _G.FS25_RealisticLivestock.Animal.createPregnancy then
         -- Store original function for cleanup
@@ -191,7 +192,7 @@ local function overrideCreatePregnancy()
     end
 end
 
--- Cleanup function to restore original functions
+---Cleanup function to restore original functions
 function AnimalPregnancyOverride.delete()
     -- Restore original Animal.createPregnancy function
     if AnimalPregnancyOverride.originalFunctions.animalCreatePregnancy and _G.FS25_RealisticLivestock and _G.FS25_RealisticLivestock.Animal then

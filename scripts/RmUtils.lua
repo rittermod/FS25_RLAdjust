@@ -1,8 +1,9 @@
 RmUtils = {}
 local RmUtils_mt = Class(RmUtils)
 
-RmUtils.debugEnabled = true
-RmUtils.traceEnabled = false
+-- Module constants
+RmUtils.DEBUG_ENABLED = true
+RmUtils.TRACE_ENABLED = true
 RmUtils.LOG_PREFIX = "[RmUtils]"
 
 local function debugPrint(msg)
@@ -33,30 +34,46 @@ local function logCommon(logFunc, ...)
     end
 end
 
+---Logs info messages
+---@param ... any Values to log
 function RmUtils.logInfo(...)
     logCommon(Logging.info, ...)
 end
 
+---Logs warning messages
+---@param ... any Values to log
 function RmUtils.logWarning(...)
     logCommon(Logging.warning, ...)
 end
 
+---Logs error messages
+---@param ... any Values to log
 function RmUtils.logError(...)
     logCommon(Logging.error, ...)
 end
 
+---Logs debug messages if debug is enabled
+---@param ... any Values to log
 function RmUtils.logDebug(...)
-    if RmUtils.debugEnabled then
+    if RmUtils.DEBUG_ENABLED then
         logCommon(debugPrint, ...)
     end
 end
 
+---Logs trace messages if trace is enabled
+---@param ... any Values to log
 function RmUtils.logTrace(...)
-    if RmUtils.traceEnabled then
+    if RmUtils.TRACE_ENABLED then
         logCommon(tracePrint, ...)
     end
 end
 
+---Converts table to string representation with configurable depth
+---@param tbl table Table to convert
+---@param indent number|nil Current indentation level
+---@param maxDepth number|nil Maximum depth to traverse
+---@param initialIndent number|nil Initial indentation level
+---@return string String representation of the table
 function RmUtils.tableToString(tbl, indent, maxDepth, initialIndent)
     indent = indent or 0
     maxDepth = maxDepth or 2
@@ -81,6 +98,9 @@ function RmUtils.tableToString(tbl, indent, maxDepth, initialIndent)
     return table.concat(result, "\n")
 end
 
+---Converts function parameters to string representation
+---@param ... any Function parameters to convert
+---@return string String representation of parameters
 function RmUtils.functionParametersToString(...)
     local args = { ... }
     local result = {}
@@ -95,6 +115,8 @@ function RmUtils.functionParametersToString(...)
     return table.concat(result, "\n")
 end
 
+---Sets the log prefix for all logging functions
+---@param prefix string|nil New log prefix (defaults to "[RmUtils]")
 function RmUtils.setLogPrefix(prefix)
     RmUtils.LOG_PREFIX = prefix or "[RmUtils]"
 end

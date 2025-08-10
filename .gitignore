@@ -3,3 +3,4 @@ CLAUDE.md
 .vscode/
 build/
 scripts/scratch.lua
+*.code-workspace

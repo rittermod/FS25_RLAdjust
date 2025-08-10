@@ -10,22 +10,28 @@
 RLAdjust = {}
 local RLAdjust_mt = Class(RLAdjust)
 
-RLAdjust.dir = g_currentModDirectory
-source(RLAdjust.dir .. "scripts/RmUtils.lua")
+-- Module constants
+RLAdjust.MOD_DIRECTORY = g_currentModDirectory
+source(RLAdjust.MOD_DIRECTORY .. "scripts/RmUtils.lua")
 
 -- Set logging prefix for the mod
 RmUtils.setLogPrefix("[RLAdjust]")
 
-source(RLAdjust.dir .. "scripts/BreedingMath.lua")
-source(RLAdjust.dir .. "scripts/AnimalNameOverride.lua")
-source(RLAdjust.dir .. "scripts/AnimalPregnancyOverride.lua")
+source(RLAdjust.MOD_DIRECTORY .. "scripts/BreedingMath.lua")
+source(RLAdjust.MOD_DIRECTORY .. "scripts/AnimalNameOverride.lua")
+source(RLAdjust.MOD_DIRECTORY .. "scripts/AnimalPregnancyOverride.lua")
 
+---Creates a new RLAdjust instance
+---@param customMt table|nil Optional custom metatable
+---@return table New RLAdjust instance
 function RLAdjust.new(customMt)
     local self = setmetatable({}, customMt or RLAdjust_mt)
 
     return self
 end
 
+---Checks if FS25_RealisticLivestock.Animal is available
+---@return boolean True if available, false otherwise
 function RLAdjust:checkRealisticLivestockAnimal()
     RmUtils.logInfo("Checking for FS25_RealisticLivestock.Animal...")
 
@@ -38,6 +44,8 @@ function RLAdjust:checkRealisticLivestockAnimal()
     end
 end
 
+---Checks for available animal screen controllers
+---@return boolean True if controllers found, false otherwise
 function RLAdjust:checkAnimalScreenControllers()
     RmUtils.logInfo("Checking for animal screen controllers...")
 
@@ -60,6 +68,7 @@ function RLAdjust:checkAnimalScreenControllers()
     end
 end
 
+---Initializes the mod and loads adjustments if dependencies are available
 function RLAdjust:initialize()
     -- Check for required dependencies
     self.hasRealisticLivestockAnimal = self:checkRealisticLivestockAnimal()
@@ -79,11 +88,14 @@ function RLAdjust:initialize()
     end
 end
 
+---Called when a map is loaded
+---@param name string Map name
 function RLAdjust:loadMap(name)
     RmUtils.logInfo(string.format("Loading map '%s'", name))
     self:initialize()
 end
 
+---Called when a map is unloaded, performs cleanup
 function RLAdjust:deleteMap()
     RmUtils.logInfo("Unloading map")
 
