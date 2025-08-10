@@ -18,6 +18,9 @@ AnimalNameOverride.DISPLAY_MAX = 99
 -- Store original functions for cleanup
 AnimalNameOverride.originalFunctions = {}
 
+-- Reference to settings instance (will be set by main.lua)
+AnimalNameOverride.settings = nil
+
 ---Constructs animal name with genetics quality information
 ---@param animal table The animal object containing genetics data
 ---@param context string Context identifier for logging purposes
@@ -91,7 +94,14 @@ local function setAnimalNameWithGenetics(animal, context, currentName)
         table.insert(detailTraits, scaleToNinetyNine(animal.genetics.productivity))
     end
 
-    local qualityValue = string.format("%s-%s", overallRating, table.concat(detailTraits, ":"))
+    -- Build quality value based on settings format
+    local qualityValue
+    if AnimalNameOverride.settings and AnimalNameOverride.settings:getGeneticsFormat() == "short" then
+        qualityValue = overallRating
+    else
+        -- Default to long format
+        qualityValue = string.format("%s-%s", overallRating, table.concat(detailTraits, ":"))
+    end
 
     -- Get current name (use provided name or get it from animal)
     if not currentName then
@@ -103,17 +113,29 @@ local function setAnimalNameWithGenetics(animal, context, currentName)
         end
     end
 
-    -- Remove existing [overallQuality:detailTraits] prefix if present
+    -- Remove existing genetics information from name (handles both prefix and postfix)
     local cleanName = currentName
-    if string.find(currentName, "^%[") then
-        -- Remove pattern like "[85-85:73:99:97] " from the beginning
-        cleanName = string.gsub(currentName, "^%[[%d]+%-[%d%:]+%] ?", "")
-        RmUtils.logTrace(string.format("Removed existing quality from: '%s', clean name: '%s'", currentName, cleanName))
+    -- Remove patterns like "[85-85:73:99:97] " from beginning or " [85-85:73:99:97]" from end
+    -- Pattern: [number] or [number-number:number:number:number] with optional spaces
+    cleanName = string.gsub(cleanName, "^%[[%d]+[%-:]*[%d:]*%] ?", "")
+    cleanName = string.gsub(cleanName, " ?%[[%d]+[%-:]*[%d:]*%]$", "")
+    if cleanName ~= currentName then
+        RmUtils.logTrace(string.format("Removed existing genetics from: '%s', clean name: '%s'", currentName, cleanName))
     end
 
-    -- Add new genetics quality
+    -- Add genetics information based on position setting
+    local position = "prefix" -- default
+    if AnimalNameOverride.settings then
+        position = AnimalNameOverride.settings:getGeneticsPosition()
+    end
+
     if cleanName ~= "" then
-        animal.name = string.format("[%s] %s", qualityValue, cleanName)
+        if position == "postfix" then
+            animal.name = string.format("%s [%s]", cleanName, qualityValue)
+        else
+            -- Default to prefix
+            animal.name = string.format("[%s] %s", qualityValue, cleanName)
+        end
     else
         animal.name = string.format("[%s]", qualityValue)
     end

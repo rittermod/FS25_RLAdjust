@@ -17,6 +17,7 @@ source(RLAdjust.MOD_DIRECTORY .. "scripts/RmUtils.lua")
 -- Set logging prefix for the mod
 RmUtils.setLogPrefix("[RLAdjust]")
 
+source(RLAdjust.MOD_DIRECTORY .. "scripts/Settings.lua")
 source(RLAdjust.MOD_DIRECTORY .. "scripts/BreedingMath.lua")
 source(RLAdjust.MOD_DIRECTORY .. "scripts/AnimalNameOverride.lua")
 source(RLAdjust.MOD_DIRECTORY .. "scripts/AnimalPregnancyOverride.lua")
@@ -26,6 +27,9 @@ source(RLAdjust.MOD_DIRECTORY .. "scripts/AnimalPregnancyOverride.lua")
 ---@return table New RLAdjust instance
 function RLAdjust.new(customMt)
     local self = setmetatable({}, customMt or RLAdjust_mt)
+
+    -- Initialize settings
+    self.settings = Settings.new()
 
     return self
 end
@@ -70,6 +74,12 @@ end
 
 ---Initializes the mod and loads adjustments if dependencies are available
 function RLAdjust:initialize()
+    -- Load settings from savegame folder
+    self.settings:loadFromXML()
+    RmUtils.logInfo("Current " .. self.settings:getSummary())
+
+    -- Pass settings reference to other modules
+    AnimalNameOverride.settings = self.settings
     -- Check for required dependencies
     self.hasRealisticLivestockAnimal = self:checkRealisticLivestockAnimal()
     self.hasAnimalScreenControllers = self:checkAnimalScreenControllers()
@@ -86,6 +96,9 @@ function RLAdjust:initialize()
     else
         RmUtils.logWarning("Missing FS25_RealisticLivestock.Animal, adjustments will not be loaded")
     end
+
+    -- Add console commands
+    self:setupConsoleCommands()
 end
 
 ---Called when a map is loaded
@@ -93,6 +106,15 @@ end
 function RLAdjust:loadMap(name)
     RmUtils.logInfo(string.format("Loading map '%s'", name))
     self:initialize()
+end
+
+---Reloads settings from file (useful for runtime changes)
+function RLAdjust:reloadSettings()
+    if self.settings then
+        self.settings:reload()
+        AnimalNameOverride.settings = self.settings
+        RmUtils.logInfo("Settings reloaded: " .. self.settings:getSummary())
+    end
 end
 
 ---Called when a map is unloaded, performs cleanup
@@ -106,6 +128,52 @@ function RLAdjust:deleteMap()
 
     if AnimalPregnancyOverride and AnimalPregnancyOverride.delete then
         AnimalPregnancyOverride.delete()
+    end
+
+    -- Clear settings references
+    AnimalNameOverride.settings = nil
+end
+
+---Sets up console commands for the mod
+function RLAdjust:setupConsoleCommands()
+    addConsoleCommand("rlaReloadSettings", "Reloads RL Adjust settings from file", "consoleCommandReloadSettings", self)
+    addConsoleCommand("rlaShowSettings", "Shows current RL Adjust settings", "consoleCommandShowSettings", self)
+    addConsoleCommand("rlaSaveSettings", "Manually saves RL Adjust settings to file", "consoleCommandSaveSettings", self)
+    addConsoleCommand("rlaTestPath", "Shows the settings file path", "consoleCommandTestPath", self)
+end
+
+---Console command to reload settings
+function RLAdjust:consoleCommandReloadSettings()
+    self:reloadSettings()
+    return "Settings reloaded successfully"
+end
+
+---Console command to show current settings
+function RLAdjust:consoleCommandShowSettings()
+    if self.settings then
+        return self.settings:getSummary()
+    else
+        return "Settings not initialized"
+    end
+end
+
+---Console command to manually save settings
+function RLAdjust:consoleCommandSaveSettings()
+    if self.settings then
+        local success = self.settings:saveToXML()
+        return success and "Settings saved successfully" or "Failed to save settings"
+    else
+        return "Settings not initialized"
+    end
+end
+
+---Console command to test settings file path
+function RLAdjust:consoleCommandTestPath()
+    if self.settings then
+        local path = self.settings:getSettingsFilePath()
+        return path and ("Settings path: " .. path) or "No settings path available"
+    else
+        return "Settings not initialized"
     end
 end
 

@@ -20,8 +20,13 @@ This mod changes the Realistic Livestock experience by adding:
 ## Features
 
 ### Animal Name Display
-- Add genetic information to animal names automatically
-- Format: [xx-yy:yy:yy:yy] -> xx: overall genetics 00-99, yy:yy:yy:yy: individual traits
+- Automatically adds genetic information to animal names
+- **Configurable display formats**:
+  - **Short format**: `[85]` (overall genetics 00-99, default)
+  - **Long format**: `[85-85:73:99:97]` (overall + individual traits)
+- **Configurable position**:
+  - **Prefix**: `[85] Animal Name` (default)
+  - **Postfix**: `Animal Name [85]`
 - Compatible with dealer, farm, and trailer animal interfaces + in-game menu
 
 ### Pregnancy System
@@ -31,6 +36,46 @@ This mod changes the Realistic Livestock experience by adding:
   - Uses the average of both parents' traits as a baseline for calculations and standard deviation for variation
   - Offspring traits can be lower or higher than parents, allowing for more genetic diversity
   - Fine-tune if you want to adjust the level of genetic variation
+
+## Configuration
+
+### Settings File
+
+The mod creates a configurable settings file in your savegame folder:
+- **Location**: `Documents/My Games/FarmingSimulator2025/savegameX/rla_settings.xml`
+- **Auto-created**: File is created automatically with default settings on first run
+- **Live reload**: Changes can be applied without restarting using console commands
+
+### Available Settings
+
+#### geneticsPosition
+- `"prefix"` - Shows genetics before animal name: `[85] Animal Name` (default)
+- `"postfix"` - Shows genetics after animal name: `Animal Name [85]`
+
+#### geneticsFormat  
+- `"short"` - Shows only overall quality: `[85]` (default)
+- `"long"` - Shows detailed traits: `[85-85:73:99:97]`
+
+### Example Settings File
+
+```xml
+<?xml version="1.0" encoding="utf-8" standalone="no" ?>
+<settings comment="RLA Settings: geneticsPosition=[prefix|postfix], geneticsFormat=[short|long]">
+    <animalNameOverride geneticsPosition="prefix" geneticsFormat="short" />
+</settings>
+```
+
+### Console Commands
+
+Use these in-game console commands to manage settings:
+- `rlaShowSettings` - Display current settings
+- `rlaReloadSettings` - Reload settings from file (apply changes)
+- `rlaSaveSettings` - Manually save settings to file
+- `rlaTestPath` - Show settings file path
+
+### Helper Files
+
+The mod also creates `rla_settings_info.txt` in your savegame folder with usage instructions.
 
 ## Development Status
 
