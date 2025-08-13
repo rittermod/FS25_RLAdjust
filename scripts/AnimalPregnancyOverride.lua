@@ -22,7 +22,7 @@ local function overrideCreatePregnancy()
     if _G.FS25_RealisticLivestock and _G.FS25_RealisticLivestock.Animal and _G.FS25_RealisticLivestock.Animal.createPregnancy then
         -- Store original function for cleanup
         AnimalPregnancyOverride.originalFunctions.animalCreatePregnancy = _G.FS25_RealisticLivestock.Animal
-        .createPregnancy
+            .createPregnancy
 
         _G.FS25_RealisticLivestock.Animal.createPregnancy = function(self, childNum, month, year)
             RmUtils.logDebug(string.format("Animal.createPregnancy called for %s with childNum=%d, month=%d, year=%d",
@@ -47,7 +47,7 @@ local function overrideCreatePregnancy()
 
             -- Collect all eligible fathers
             for _, animal in pairs(self.clusterSystem:getAnimals()) do
-                if animal.gender == "male" then
+                if animal.gender == "male" and not (animal.isCastrated or animal.genetics.fertility <= 0) then
                     -- Same compatibility checks as original
                     local isCompatible = true
                     if animal.subType == "BULL_WATERBUFFALO" and self.subType ~= "COW_WATERBUFFALO" then isCompatible = false end
@@ -60,8 +60,8 @@ local function overrideCreatePregnancy()
                         local animalType = animal.animalTypeIndex
                         local animalSubType = animal:getSubType()
                         local maxFertilityMonth = (animalType == AnimalType.COW and 132) or
-                        (animalType == AnimalType.SHEEP and 72) or (animalType == AnimalType.HORSE and 300) or
-                        (animalType == AnimalType.CHICKEN and 1000) or (animalType == AnimalType.PIG and 48) or 120
+                            (animalType == AnimalType.SHEEP and 72) or (animalType == AnimalType.HORSE and 300) or
+                            (animalType == AnimalType.CHICKEN and 1000) or (animalType == AnimalType.PIG and 48) or 120
                         maxFertilityMonth = maxFertilityMonth * animal.genetics.fertility
 
                         if animalSubType.reproductionMinAgeMonth ~= nil and animal:getAge() >= animalSubType.reproductionMinAgeMonth and animal:getAge() < maxFertilityMonth then
@@ -83,7 +83,7 @@ local function overrideCreatePregnancy()
                 father.quality = selectedFather.genetics.quality
                 father.health = selectedFather.genetics.health
                 father.fertility = selectedFather.genetics.fertility
-                father.productivity = selectedFather.genetics.productivity or nil
+                father.productivity = selectedFather.genetics.productivity or 1
 
                 RmUtils.logDebug(string.format("Selected random father %s from %d eligible males for %s",
                     selectedFather.farmId .. " " .. selectedFather.uniqueId,
@@ -156,10 +156,19 @@ local function overrideCreatePregnancy()
                 end
             end
 
+            -- Apply freemartin effect for cattle with mixed-sex twins
+            if self.animalTypeIndex == AnimalType.COW and hasMale and hasFemale then
+                for _, child in pairs(children) do
+                    if child.gender == "female" and math.random() >= 0.03 then
+                        child.genetics.fertility = 0
+                    end
+                end
+            end
+
             -- Set pregnancy timing first (same as original)
             local animalType = self.animalTypeIndex
             local pregnancyDuration = (animalType == AnimalType.COW and 9) or (animalType == AnimalType.SHEEP and 5) or
-            (animalType == AnimalType.HORSE and 11) or (animalType == AnimalType.PIG and 4) or 9
+                (animalType == AnimalType.HORSE and 11) or (animalType == AnimalType.PIG and 4) or 9
 
             self.birthMonth = month + pregnancyDuration
             self.birthYear = year
@@ -176,7 +185,8 @@ local function overrideCreatePregnancy()
                     day = 1,
                     month = self.birthMonth,
                     year = self.birthYear
-                }
+                },
+                duration = pregnancyDuration
             }
 
             RmUtils.logDebug(string.format("Pregnancy created for %s, due %d/%d with %d children",
@@ -184,6 +194,12 @@ local function overrideCreatePregnancy()
                 self.birthMonth,
                 self.birthYear,
                 childNum))
+
+            -- Broadcast pregnancy event (same as updated base version)
+            if g_server ~= nil then
+                g_server:broadcastEvent(_G.FS25_RealisticLivestock.AnimalPregnancyEvent.new(
+                    self.clusterSystem ~= nil and self.clusterSystem.owner or nil, self))
+            end
         end
 
         RmUtils.logInfo("Animal.createPregnancy override applied for random father selection")
@@ -197,7 +213,7 @@ function AnimalPregnancyOverride.delete()
     -- Restore original Animal.createPregnancy function
     if AnimalPregnancyOverride.originalFunctions.animalCreatePregnancy and _G.FS25_RealisticLivestock and _G.FS25_RealisticLivestock.Animal then
         _G.FS25_RealisticLivestock.Animal.createPregnancy = AnimalPregnancyOverride.originalFunctions
-        .animalCreatePregnancy
+            .animalCreatePregnancy
         RmUtils.logInfo("Animal.createPregnancy function restored")
     end
 end
