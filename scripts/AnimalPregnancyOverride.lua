@@ -22,7 +22,7 @@ local function overrideCreatePregnancy()
     if _G.FS25_RealisticLivestock and _G.FS25_RealisticLivestock.Animal and _G.FS25_RealisticLivestock.Animal.createPregnancy then
         -- Store original function for cleanup
         AnimalPregnancyOverride.originalFunctions.animalCreatePregnancy = _G.FS25_RealisticLivestock.Animal
-        .createPregnancy
+            .createPregnancy
 
         _G.FS25_RealisticLivestock.Animal.createPregnancy = function(self, childNum, month, year)
             RmUtils.logDebug(string.format("Animal.createPregnancy called for %s with childNum=%d, month=%d, year=%d",
@@ -60,8 +60,8 @@ local function overrideCreatePregnancy()
                         local animalType = animal.animalTypeIndex
                         local animalSubType = animal:getSubType()
                         local maxFertilityMonth = (animalType == AnimalType.COW and 132) or
-                        (animalType == AnimalType.SHEEP and 72) or (animalType == AnimalType.HORSE and 300) or
-                        (animalType == AnimalType.CHICKEN and 1000) or (animalType == AnimalType.PIG and 48) or 120
+                            (animalType == AnimalType.SHEEP and 72) or (animalType == AnimalType.HORSE and 300) or
+                            (animalType == AnimalType.CHICKEN and 1000) or (animalType == AnimalType.PIG and 48) or 120
                         maxFertilityMonth = maxFertilityMonth * animal.genetics.fertility
 
                         if animalSubType.reproductionMinAgeMonth ~= nil and animal:getAge() >= animalSubType.reproductionMinAgeMonth and animal:getAge() < maxFertilityMonth then
@@ -83,7 +83,7 @@ local function overrideCreatePregnancy()
                 father.quality = selectedFather.genetics.quality
                 father.health = selectedFather.genetics.health
                 father.fertility = selectedFather.genetics.fertility
-                father.productivity = selectedFather.genetics.productivity or nil
+                father.productivity = selectedFather.genetics.productivity
 
                 RmUtils.logDebug(string.format("Selected random father %s from %d eligible males for %s",
                     selectedFather.farmId .. " " .. selectedFather.uniqueId,
@@ -96,6 +96,9 @@ local function overrideCreatePregnancy()
 
             -- Set up pregnancy with selected father (same structure as original)
             self.impregnatedBy = father
+            self.reproduction = 0
+
+            self:changeReproduction(self:getReproductionDelta())
 
             -- Get genetics for breeding calculations
             local genetics = self.genetics
@@ -133,7 +136,7 @@ local function overrideCreatePregnancy()
                 end
 
                 local productivity = nil
-                if genetics.productivity ~= nil then
+                if genetics.productivity ~= nil and father.productivity ~= nil then
                     productivity = BreedingMath.breedOffspring(genetics.productivity, father.productivity,
                         { sd = BreedingMath.SD_CONST })
                 end
@@ -156,27 +159,63 @@ local function overrideCreatePregnancy()
                 end
             end
 
-            -- Set pregnancy timing first (same as original)
-            local animalType = self.animalTypeIndex
-            local pregnancyDuration = (animalType == AnimalType.COW and 9) or (animalType == AnimalType.SHEEP and 5) or
-            (animalType == AnimalType.HORSE and 11) or (animalType == AnimalType.PIG and 4) or 9
-
-            self.birthMonth = month + pregnancyDuration
-            self.birthYear = year
-
-            if self.birthMonth > 12 then
-                self.birthYear = self.birthYear + 1
-                self.birthMonth = self.birthMonth - 12
+            -- Apply freemartin effect for cattle twins (same as original)
+            if self.animalTypeIndex == AnimalType.COW and hasMale and hasFemale then
+                for _, child in pairs(children) do
+                    if child.gender == "female" and math.random() >= 0.03 then
+                        child.genetics.fertility = 0
+                    end
+                end
             end
+
+            -- Calculate pregnancy timing (matching original logic)
+            local reproductionDuration = self:getSubType().reproductionDurationMonth
+
+            if math.random() >= 0.99 then
+                if math.random() >= 0.95 then
+                    reproductionDuration = reproductionDuration + math.random() >= 0.75 and -2 or 2
+                else
+                    reproductionDuration = reproductionDuration + math.random() >= 0.85 and -1 or 1
+                end
+                reproductionDuration = math.max(reproductionDuration, 2)
+            end
+
+            local expectedYear = year + math.floor(reproductionDuration / 12)
+            local expectedMonth = month + (reproductionDuration % 12)
+
+            while expectedMonth > 12 do
+                expectedMonth = expectedMonth - 12
+                expectedYear = expectedYear + 1
+            end
+
+            local daysPerMonth = _G.RealisticLivestock and _G.RealisticLivestock.DAYS_PER_MONTH or {
+                [1] = 31,
+                [2] = 28,
+                [3] = 31,
+                [4] = 30,
+                [5] = 31,
+                [6] = 30,
+                [7] = 31,
+                [8] = 31,
+                [9] = 30,
+                [10] = 31,
+                [11] = 30,
+                [12] = 31
+            }
+            local expectedDay = math.random(1, daysPerMonth[expectedMonth])
+
+            self.birthMonth = expectedMonth
+            self.birthYear = expectedYear
 
             -- Store pregnancy data (same structure as original)
             self.pregnancy = {
-                pregnancies = children,
+                duration = reproductionDuration,
                 expected = {
-                    day = 1,
+                    day = expectedDay,
                     month = self.birthMonth,
                     year = self.birthYear
-                }
+                },
+                pregnancies = children
             }
 
             RmUtils.logDebug(string.format("Pregnancy created for %s, due %d/%d with %d children",
@@ -197,7 +236,7 @@ function AnimalPregnancyOverride.delete()
     -- Restore original Animal.createPregnancy function
     if AnimalPregnancyOverride.originalFunctions.animalCreatePregnancy and _G.FS25_RealisticLivestock and _G.FS25_RealisticLivestock.Animal then
         _G.FS25_RealisticLivestock.Animal.createPregnancy = AnimalPregnancyOverride.originalFunctions
-        .animalCreatePregnancy
+            .animalCreatePregnancy
         RmUtils.logInfo("Animal.createPregnancy function restored")
     end
 end
