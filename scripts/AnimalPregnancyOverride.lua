@@ -1,13 +1,16 @@
 --
 -- Animal Pregnancy Override for Realistic Livestock Adjustments
--- Overrides createPregnancy to
--- * select random eligible fathers instead of first available
--- * calculate child genetics using breed_offspring function
--- * breed_offspring function is more variable than original and enables
---   the childrens genetics to be higher and lower than the parents'
+-- Compatible with FS25_RealisticLivestock v1.2.0.2
+--
+-- Overrides createPregnancy to:
+-- * Support new v1.2.0.2 features: artificial insemination, disease inheritance, castration checks
+-- * Select random eligible fathers instead of first available (when no father specified)
+-- * Calculate child genetics using advanced BreedingMath.breedOffspring function
+-- * Enable offspring genetics to exceed or fall below parent ranges
+-- * Maintain full compatibility with multiplayer networking events
 --
 -- @author Ritter
--- @version 1.0.0.0
+-- @version 1.2.0.2
 --
 
 AnimalPregnancyOverride = {}
@@ -17,97 +20,122 @@ local AnimalPregnancyOverride_mt = Class(AnimalPregnancyOverride)
 AnimalPregnancyOverride.originalFunctions = {}
 
 ---Overrides the FS25_RealisticLivestock Animal createPregnancy function
----to use random father selection and improved genetic calculations
+---to use random father selection when none set and improved genetic calculations
 local function overrideCreatePregnancy()
     if _G.FS25_RealisticLivestock and _G.FS25_RealisticLivestock.Animal and _G.FS25_RealisticLivestock.Animal.createPregnancy then
         -- Store original function for cleanup
         AnimalPregnancyOverride.originalFunctions.animalCreatePregnancy = _G.FS25_RealisticLivestock.Animal
             .createPregnancy
 
-        _G.FS25_RealisticLivestock.Animal.createPregnancy = function(self, childNum, month, year)
-            RmUtils.logDebug(string.format("Animal.createPregnancy called for %s with childNum=%d, month=%d, year=%d",
-                self.farmId .. " " .. self.uniqueId, childNum, month, year))
-            local fertility = self.genetics.fertility
+        _G.FS25_RealisticLivestock.Animal.createPregnancy = function(self, childNum, month, year, father)
+            RmUtils.logDebug(string.format(
+                "Animal.createPregnancy called for %s with childNum=%d, month=%d, year=%d, father=%s",
+                self:getIdentifiers(), childNum, month, year,
+                tostring(father and father.getIdentifiers and father:getIdentifiers() or "nil")))
 
-            -- Set pregnancy state
             self.isPregnant = true
 
-            -- Default father (same as original)
-            local father = {
-                uniqueId = "-1",
-                metabolism = 1.0,
-                quality = 1.0,
-                health = 1.0,
-                fertility = 1.0,
-                productivity = 1.0
-            }
+            if father == nil then
+                -- Default father
+                father = {
+                    uniqueId = "-1",
+                    metabolism = 1.0,
+                    quality = 1.0,
+                    health = 1.0,
+                    fertility = 1.0,
+                    productivity = 1.0
+                }
 
-            local fatherSubTypeIndex
-            local eligibleFathers = {}
+                local fatherSubTypeIndex = nil
+                local eligibleFathers = {}
 
-            -- Collect all eligible fathers
-            for _, animal in pairs(self.clusterSystem:getAnimals()) do
-                if animal.gender == "male" then
-                    -- Same compatibility checks as original
-                    local isCompatible = true
-                    if animal.subType == "BULL_WATERBUFFALO" and self.subType ~= "COW_WATERBUFFALO" then isCompatible = false end
-                    if animal.subType == "RAM_GOAT" and self.subType ~= "GOAT" then isCompatible = false end
-                    if self.subType == "COW_WATERBUFFALO" and animal.subType ~= "BULL_WATERBUFFALO" then isCompatible = false end
-                    if self.subType == "GOAT" and animal.subType ~= "RAM_GOAT" then isCompatible = false end
+                -- Collect all eligible fathers with v1.2.0.2 enhanced checks
+                for _, animal in pairs(self.clusterSystem:getAnimals()) do
+                    -- Enhanced breeding checks from v1.2.0.2 (Lua 5.1 compatible)
+                    if animal.gender == "male" and not animal.isCastrated and animal.genetics.fertility > 0 and animal:getIdentifiers() ~= self.fatherId then
+                        -- Species compatibility checks
+                        local isCompatible = true
+                        if animal.subType == "BULL_WATERBUFFALO" and self.subType ~= "COW_WATERBUFFALO" then
+                            isCompatible = false
+                        elseif animal.subType == "RAM_GOAT" and self.subType ~= "GOAT" then
+                            isCompatible = false
+                        elseif self.subType == "COW_WATERBUFFALO" and animal.subType ~= "BULL_WATERBUFFALO" then
+                            isCompatible = false
+                        elseif self.subType == "GOAT" and animal.subType ~= "RAM_GOAT" then
+                            isCompatible = false
+                        end
 
-                    if isCompatible then
-                        -- Same age checks as original
-                        local animalType = animal.animalTypeIndex
-                        local animalSubType = animal:getSubType()
-                        local maxFertilityMonth = (animalType == AnimalType.COW and 132) or
-                            (animalType == AnimalType.SHEEP and 72) or (animalType == AnimalType.HORSE and 300) or
-                            (animalType == AnimalType.CHICKEN and 1000) or (animalType == AnimalType.PIG and 48) or 120
-                        maxFertilityMonth = maxFertilityMonth * animal.genetics.fertility
+                        if isCompatible then
+                            local animalType = animal.animalTypeIndex
+                            local animalSubType = animal:getSubType()
+                            local maxFertilityMonth = (animalType == AnimalType.COW and 132) or
+                                (animalType == AnimalType.SHEEP and 72) or (animalType == AnimalType.HORSE and 300) or
+                                (animalType == AnimalType.CHICKEN and 1000) or (animalType == AnimalType.PIG and 48) or
+                                120
+                            maxFertilityMonth = maxFertilityMonth * animal.genetics.fertility
 
-                        if animalSubType.reproductionMinAgeMonth ~= nil and animal:getAge() >= animalSubType.reproductionMinAgeMonth and animal:getAge() < maxFertilityMonth then
-                            table.insert(eligibleFathers, animal)
+                            if animalSubType.reproductionMinAgeMonth ~= nil and animal:getAge() >= animalSubType.reproductionMinAgeMonth and animal:getAge() < maxFertilityMonth then
+                                table.insert(eligibleFathers, animal)
+                            end
                         end
                     end
                 end
+
+                -- RANDOM SELECTION: Select random father instead of first eligible
+                if #eligibleFathers > 0 then
+                    local randomIndex = math.random(1, #eligibleFathers)
+                    local selectedFather = eligibleFathers[randomIndex]
+
+                    fatherSubTypeIndex = selectedFather.subTypeIndex
+                    father.uniqueId = selectedFather:getIdentifiers()
+                    father.metabolism = selectedFather.genetics.metabolism
+                    father.quality = selectedFather.genetics.quality
+                    father.health = selectedFather.genetics.health
+                    father.fertility = selectedFather.genetics.fertility
+                    father.productivity = selectedFather.genetics.productivity
+                    father.animal = selectedFather
+
+                    RmUtils.logDebug(string.format("Selected random father %s from %d eligible males for %s",
+                        selectedFather:getIdentifiers(),
+                        #eligibleFathers,
+                        self:getIdentifiers()))
+                else
+                    RmUtils.logInfo(string.format("No eligible fathers found for %s, using default father",
+                        self:getIdentifiers()))
+                end
             end
 
-            -- Select random father if any eligible ones found
-            if #eligibleFathers > 0 then
-                local randomIndex = math.random(1, #eligibleFathers)
-                local selectedFather = eligibleFathers[randomIndex]
-
-                -- Update father info with selected father's data
-                fatherSubTypeIndex = selectedFather.subTypeIndex
-                father.uniqueId = selectedFather.farmId .. " " .. selectedFather.uniqueId
-                father.metabolism = selectedFather.genetics.metabolism
-                father.quality = selectedFather.genetics.quality
-                father.health = selectedFather.genetics.health
-                father.fertility = selectedFather.genetics.fertility
-                father.productivity = selectedFather.genetics.productivity
-
-                RmUtils.logDebug(string.format("Selected random father %s from %d eligible males for %s",
-                    selectedFather.farmId .. " " .. selectedFather.uniqueId,
-                    #eligibleFathers,
-                    self.farmId .. " " .. self.uniqueId))
-            else
-                RmUtils.logInfo(string.format("No eligible fathers found for %s, using default father",
-                    self.farmId .. " " .. self.uniqueId))
-            end
-
-            -- Set up pregnancy with selected father (same structure as original)
             self.impregnatedBy = father
             self.reproduction = 0
-
             self:changeReproduction(self:getReproductionDelta())
 
-            -- Get genetics for breeding calculations
             local genetics = self.genetics
 
-            -- Create children with calculated genetics (same as original)
+            -- Disease inheritance system
+            local mDiseases, fDiseases = self.diseases, father.animal ~= nil and father.animal.diseases or {}
+            local diseases = {}
+
+            for _, disease in pairs(mDiseases) do
+                table.insert(diseases, { ["parent"] = father.animal, ["disease"] = disease })
+            end
+
+            for _, disease in pairs(fDiseases) do
+                local hasDisease = false
+                for _, mDisease in pairs(mDiseases) do
+                    if mDisease.type.title == disease.type.title then
+                        hasDisease = true
+                        break
+                    end
+                end
+                if not hasDisease then
+                    table.insert(diseases, { ["parent"] = self, ["disease"] = disease })
+                end
+            end
+
             local children = {}
             local hasMale, hasFemale = false, false
 
-            for i = 1, childNum do
+            for _ = 1, childNum do
                 local gender = math.random() >= 0.5 and "male" or "female"
                 local subTypeIndex
 
@@ -117,11 +145,10 @@ local function overrideCreatePregnancy()
                     subTypeIndex = self.subTypeIndex + (gender == "male" and 1 or 0)
                 end
 
-                -- Create child with genetics (same as original Animal.new call)
                 local child = _G.FS25_RealisticLivestock.Animal.new(-1, 100, 0, gender, subTypeIndex, 0, false, false,
-                    false, nil, nil, self.farmId .. " " .. self.uniqueId, father.uniqueId)
+                    false, nil, nil, self:getIdentifiers(), father.uniqueId)
 
-                -- Calculate child genetics using breed_offspring function
+                -- ADVANCED GENETICS: Use BreedingMath instead of simple random
                 local metabolism = BreedingMath.breedOffspring(genetics.metabolism, father.metabolism,
                     { sd = BreedingMath.SD_CONST })
                 local quality = BreedingMath.breedOffspring(genetics.quality, father.quality,
@@ -136,12 +163,11 @@ local function overrideCreatePregnancy()
                 end
 
                 local productivity = nil
-                if genetics.productivity ~= nil and father.productivity ~= nil then
-                    productivity = BreedingMath.breedOffspring(genetics.productivity, father.productivity,
+                if genetics.productivity ~= nil then
+                    productivity = BreedingMath.breedOffspring(genetics.productivity, father.productivity or 1,
                         { sd = BreedingMath.SD_CONST })
                 end
 
-                -- Set child genetics
                 child:setGenetics({
                     ["metabolism"] = metabolism,
                     ["quality"] = quality,
@@ -149,6 +175,11 @@ local function overrideCreatePregnancy()
                     ["fertility"] = fertility,
                     ["productivity"] = productivity
                 })
+
+                -- Disease inheritance
+                for _, disease in pairs(diseases) do
+                    disease.disease:affectReproduction(child, disease.parent)
+                end
 
                 table.insert(children, child)
 
@@ -159,7 +190,7 @@ local function overrideCreatePregnancy()
                 end
             end
 
-            -- Apply freemartin effect for cattle twins (same as original)
+            -- Freemartin effect for cattle twins
             if self.animalTypeIndex == AnimalType.COW and hasMale and hasFemale then
                 for _, child in pairs(children) do
                     if child.gender == "female" and math.random() >= 0.03 then
@@ -168,7 +199,7 @@ local function overrideCreatePregnancy()
                 end
             end
 
-            -- Calculate pregnancy timing (matching original logic)
+            -- Pregnancy timing calculation
             local reproductionDuration = self:getSubType().reproductionDurationMonth
 
             if math.random() >= 0.99 then
@@ -188,7 +219,8 @@ local function overrideCreatePregnancy()
                 expectedYear = expectedYear + 1
             end
 
-            local daysPerMonth = _G.RealisticLivestock and _G.RealisticLivestock.DAYS_PER_MONTH or {
+            -- DAYS_PER_MONTH is not exported by FS25_RealisticLivestock, use standard calendar
+            local daysPerMonth = {
                 [1] = 31,
                 [2] = 28,
                 [3] = 31,
@@ -204,24 +236,26 @@ local function overrideCreatePregnancy()
             }
             local expectedDay = math.random(1, daysPerMonth[expectedMonth])
 
-            self.birthMonth = expectedMonth
-            self.birthYear = expectedYear
-
-            -- Store pregnancy data (same structure as original)
             self.pregnancy = {
-                duration = reproductionDuration,
-                expected = {
-                    day = expectedDay,
-                    month = self.birthMonth,
-                    year = self.birthYear
+                ["duration"] = reproductionDuration,
+                ["expected"] = {
+                    ["day"] = expectedDay,
+                    ["month"] = expectedMonth,
+                    ["year"] = expectedYear
                 },
-                pregnancies = children
+                ["pregnancies"] = children
             }
 
+            -- Network event broadcasting
+            if g_server and _G.FS25_RealisticLivestock and _G.FS25_RealisticLivestock.AnimalPregnancyEvent then
+                g_server:broadcastEvent(_G.FS25_RealisticLivestock.AnimalPregnancyEvent.new(
+                    self.clusterSystem ~= nil and self.clusterSystem.owner or nil, self))
+            end
+
             RmUtils.logDebug(string.format("Pregnancy created for %s, due %d/%d with %d children",
-                self.farmId .. " " .. self.uniqueId,
-                self.birthMonth,
-                self.birthYear,
+                self:getIdentifiers(),
+                expectedMonth,
+                expectedYear,
                 childNum))
         end
 
@@ -229,6 +263,11 @@ local function overrideCreatePregnancy()
     else
         RmUtils.logWarning("Animal.createPregnancy not available for override")
     end
+end
+
+---Applies the Animal createPregnancy override
+function AnimalPregnancyOverride.initialize()
+    overrideCreatePregnancy()
 end
 
 ---Cleanup function to restore original functions
@@ -241,5 +280,4 @@ function AnimalPregnancyOverride.delete()
     end
 end
 
--- Apply the override
-overrideCreatePregnancy()
+-- Override will be applied during RLAdjust initialization, not immediately

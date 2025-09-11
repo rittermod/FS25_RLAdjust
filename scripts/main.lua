@@ -3,7 +3,7 @@
 -- Main mod entry point
 --
 -- @author Ritter
--- @version 1.0.0.0
+-- @version 1.2.0.2
 --
 
 -- Load required dependencies
@@ -87,12 +87,16 @@ function RLAdjust:initialize()
     -- Load adjustments only if dependencies are available
     if self.hasRealisticLivestockAnimal then
         RmUtils.logInfo("Loading animal adjustments...")
+
+        -- Apply overrides now that RealisticLivestock is confirmed loaded
+        AnimalNameOverride.initialize()
+        AnimalPregnancyOverride.initialize()
+
         if self.hasAnimalScreenControllers then
             RmUtils.logInfo("Animal screen controllers available for UI override")
         else
             RmUtils.logWarning("No animal screen controllers found - UI may not show genetics")
         end
-        -- AnimalNameOverride.lua is now loaded via modDesc.xml
     else
         RmUtils.logWarning("Missing FS25_RealisticLivestock.Animal, adjustments will not be loaded")
     end

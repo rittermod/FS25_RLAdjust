@@ -3,7 +3,7 @@
 -- Handles loading and saving configuration from savegame folder
 --
 -- @author Ritter
--- @version 1.0.0.0
+-- @version 1.2.0.2
 --
 
 Settings = {}
@@ -12,18 +12,18 @@ local Settings_mt = Class(Settings)
 -- Module constants
 Settings.FILENAME = "rla_settings.xml"
 Settings.DEFAULT_GENETICS_POSITION = "prefix" -- "prefix" or "postfix"
-Settings.DEFAULT_GENETICS_FORMAT = "short" -- "short" or "long"
+Settings.DEFAULT_GENETICS_FORMAT = "short"    -- "short" or "long"
 
 ---Creates a new Settings instance with default values
 ---@return table New Settings instance
 function Settings.new()
     local self = setmetatable({}, Settings_mt)
-    
+
     -- Default settings
     self.geneticsPosition = Settings.DEFAULT_GENETICS_POSITION
     self.geneticsFormat = Settings.DEFAULT_GENETICS_FORMAT
     self.settingsFile = nil
-    
+
     return self
 end
 
@@ -31,26 +31,26 @@ end
 ---@return string|nil Settings file path, or nil if no save game is active
 function Settings:getSettingsFilePath()
     RmUtils.logDebug("Checking for savegame directory...")
-    
+
     if not g_currentMission then
         RmUtils.logWarning("g_currentMission is nil")
         return nil
     end
-    
+
     if not g_currentMission.missionInfo then
         RmUtils.logWarning("g_currentMission.missionInfo is nil")
         return nil
     end
-    
+
     if not g_currentMission.missionInfo.savegameDirectory then
         RmUtils.logWarning("g_currentMission.missionInfo.savegameDirectory is nil")
         return nil
     end
-    
+
     local savegameDir = g_currentMission.missionInfo.savegameDirectory
     local filePath = savegameDir .. "/" .. Settings.FILENAME
     RmUtils.logDebug("Settings file path: " .. filePath)
-    
+
     return filePath
 end
 
@@ -62,7 +62,7 @@ function Settings:loadFromXML()
         RmUtils.logInfo("Using default settings (no savegame active)")
         return false
     end
-    
+
     if not fileExists(filePath) then
         RmUtils.logInfo("Settings file not found, creating with defaults: " .. filePath)
         local saveSuccess = self:saveToXML()
@@ -71,13 +71,13 @@ function Settings:loadFromXML()
         end
         return saveSuccess
     end
-    
+
     local xmlFile = XMLFile.load("settingsXML", filePath)
     if not xmlFile then
         RmUtils.logError("Failed to load settings file: " .. filePath)
         return false
     end
-    
+
     -- Load genetics position setting
     local geneticsPosition = xmlFile:getString("settings.animalNameOverride#geneticsPosition")
     if geneticsPosition == "prefix" or geneticsPosition == "postfix" then
@@ -86,7 +86,7 @@ function Settings:loadFromXML()
     else
         RmUtils.logWarning("Invalid genetics position in settings, using default: " .. self.geneticsPosition)
     end
-    
+
     -- Load genetics format setting
     local geneticsFormat = xmlFile:getString("settings.animalNameOverride#geneticsFormat")
     if geneticsFormat == "short" or geneticsFormat == "long" then
@@ -95,7 +95,7 @@ function Settings:loadFromXML()
     else
         RmUtils.logWarning("Invalid genetics format in settings, using default: " .. self.geneticsFormat)
     end
-    
+
     xmlFile:delete()
     RmUtils.logInfo("Settings loaded successfully from: " .. filePath)
     return true
@@ -105,37 +105,37 @@ end
 ---@return boolean True if saved successfully, false otherwise
 function Settings:saveToXML()
     RmUtils.logDebug("Attempting to save settings...")
-    
+
     local filePath = self:getSettingsFilePath()
     if not filePath then
         RmUtils.logWarning("Cannot save settings - no savegame active")
         return false
     end
-    
+
     RmUtils.logDebug("Creating XML file at: " .. filePath)
     local xmlFile = XMLFile.create("settingsXML", filePath, "settings")
     if not xmlFile then
         RmUtils.logError("Failed to create settings file: " .. filePath)
         return false
     end
-    
+
     RmUtils.logDebug("Setting XML values...")
-    
+
     -- Save animal name override settings
     local success1 = xmlFile:setString("settings.animalNameOverride#geneticsPosition", self.geneticsPosition)
     local success2 = xmlFile:setString("settings.animalNameOverride#geneticsFormat", self.geneticsFormat)
-    
+
     RmUtils.logDebug("Set genetics position: " .. tostring(success1) .. ", format: " .. tostring(success2))
-    
+
     -- Add brief comment to main element only
     xmlFile:setString("settings#comment", "RLA Settings: geneticsPosition=[prefix|postfix], geneticsFormat=[short|long]")
-    
+
     RmUtils.logDebug("Saving XML file...")
     local saveResult = xmlFile:save()
     RmUtils.logDebug("Save result: " .. tostring(saveResult))
-    
+
     xmlFile:delete()
-    
+
     if saveResult then
         RmUtils.logInfo("Settings saved successfully to: " .. filePath)
         -- Create a more user-friendly version by writing a comment file
@@ -197,7 +197,7 @@ end
 ---Gets a summary of current settings for debugging
 ---@return string Settings summary
 function Settings:getSummary()
-    return string.format("Settings: geneticsPosition=%s, geneticsFormat=%s", 
+    return string.format("Settings: geneticsPosition=%s, geneticsFormat=%s",
         self.geneticsPosition, self.geneticsFormat)
 end
 
@@ -206,28 +206,28 @@ end
 local function writeReadableSettingsInfo(self, xmlPath)
     local infoPath = string.gsub(xmlPath, ".xml$", "_info.txt")
     local file = io.open(infoPath, "w")
-    
+
     if file then
-        file:write("=== FS25 Realistic Livestock Adjustments Settings ===".."\n")
-        file:write("".."\n")
-        file:write("Edit the rla_settings.xml file to change these settings:".."\n")
-        file:write("".."\n")
-        file:write("geneticsPosition:".."\n")
-        file:write("  - 'prefix': Shows genetics before name: [85] Animal Name".."\n")
-        file:write("  - 'postfix': Shows genetics after name: Animal Name [85]".."\n")
-        file:write("  Current: " .. self.geneticsPosition.."\n")
-        file:write("".."\n")
-        file:write("geneticsFormat:".."\n")
-        file:write("  - 'short': Shows overall quality only: [85]".."\n")
-        file:write("  - 'long': Shows detailed traits: [85-85:73:99:97]".."\n")
-        file:write("  Current: " .. self.geneticsFormat.."\n")
-        file:write("".."\n")
-        file:write("After editing rla_settings.xml, use console command:".."\n")
-        file:write("  rlaReloadSettings".."\n")
-        file:write("".."\n")
-        file:write("Example XML format:".."\n")
-        file:write('<animalNameOverride geneticsPosition="prefix" geneticsFormat="short"/>'.."\n")
-        
+        file:write("=== FS25 Realistic Livestock Adjustments Settings ===" .. "\n")
+        file:write("" .. "\n")
+        file:write("Edit the rla_settings.xml file to change these settings:" .. "\n")
+        file:write("" .. "\n")
+        file:write("geneticsPosition:" .. "\n")
+        file:write("  - 'prefix': Shows genetics before name: [85] Animal Name" .. "\n")
+        file:write("  - 'postfix': Shows genetics after name: Animal Name [85]" .. "\n")
+        file:write("  Current: " .. self.geneticsPosition .. "\n")
+        file:write("" .. "\n")
+        file:write("geneticsFormat:" .. "\n")
+        file:write("  - 'short': Shows overall quality only: [85]" .. "\n")
+        file:write("  - 'long': Shows detailed traits: [85-85:73:99:97]" .. "\n")
+        file:write("  Current: " .. self.geneticsFormat .. "\n")
+        file:write("" .. "\n")
+        file:write("After editing rla_settings.xml, use console command:" .. "\n")
+        file:write("  rlaReloadSettings" .. "\n")
+        file:write("" .. "\n")
+        file:write("Example XML format:" .. "\n")
+        file:write('<animalNameOverride geneticsPosition="prefix" geneticsFormat="short"/>' .. "\n")
+
         file:close()
     end
 end

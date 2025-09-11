@@ -3,7 +3,7 @@
 -- Overrides animals name to display genetics information
 --
 -- @author Ritter
--- @version 1.0.0.0
+-- @version 1.2.0.2
 --
 
 AnimalNameOverride = {}
@@ -253,6 +253,11 @@ local ANIMAL_SCREEN_CONTROLLERS = {
 -- Apply controller hooks
 hookControllerFunctions(ANIMAL_SCREEN_CONTROLLERS, addGeneticsToTargetItems, addGeneticsToSourceItems)
 
+---Applies the Animal getName override
+function AnimalNameOverride.initialize()
+    overrideAnimalGetName()
+end
+
 ---Cleanup function to restore original functions
 function AnimalNameOverride.delete()
     -- Restore original Animal.getName function
@@ -265,5 +270,4 @@ function AnimalNameOverride.delete()
     end
 end
 
--- Apply the Animal getName override
-overrideAnimalGetName()
+-- Override will be applied during RLAdjust initialization, not immediately
