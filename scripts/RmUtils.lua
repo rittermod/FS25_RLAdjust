@@ -3,7 +3,7 @@ local RmUtils_mt = Class(RmUtils)
 
 -- Module constants
 RmUtils.DEBUG_ENABLED = true
-RmUtils.TRACE_ENABLED = true
+RmUtils.TRACE_ENABLED = false
 RmUtils.LOG_PREFIX = "[RmUtils]"
 
 local function debugPrint(msg)

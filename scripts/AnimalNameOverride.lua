@@ -228,14 +228,6 @@ local function hookControllerFunctions(controllers, targetFunc, sourceFunc)
     for _, controllerName in ipairs(controllers) do
         local controller = _G[controllerName]
         if controller then
-            -- Hook initTargetItems
-            if controller.initTargetItems then
-                controller.initTargetItems = Utils.appendedFunction(controller.initTargetItems, targetFunc)
-                RmUtils.logInfo(string.format("%s.initTargetItems appended function applied successfully", controllerName))
-            else
-                RmUtils.logWarning(string.format("%s.initTargetItems not available", controllerName))
-            end
-
             -- Hook initSourceItems
             if controller.initSourceItems then
                 controller.initSourceItems = Utils.appendedFunction(controller.initSourceItems, sourceFunc)
