@@ -26,6 +26,7 @@ local function overrideCreatePregnancy()
         -- Store original function for cleanup
         AnimalPregnancyOverride.originalFunctions.animalCreatePregnancy = _G.FS25_RealisticLivestock.Animal
             .createPregnancy
+            .createPregnancy
 
         _G.FS25_RealisticLivestock.Animal.createPregnancy = function(self, childNum, month, year, father)
             RmUtils.logDebug(string.format(
@@ -257,6 +258,12 @@ local function overrideCreatePregnancy()
                 expectedMonth,
                 expectedYear,
                 childNum))
+
+            -- Broadcast pregnancy event (same as updated base version)
+            if g_server ~= nil then
+                g_server:broadcastEvent(_G.FS25_RealisticLivestock.AnimalPregnancyEvent.new(
+                    self.clusterSystem ~= nil and self.clusterSystem.owner or nil, self))
+            end
         end
 
         RmUtils.logInfo("Animal.createPregnancy override applied for random father selection")
@@ -275,6 +282,7 @@ function AnimalPregnancyOverride.delete()
     -- Restore original Animal.createPregnancy function
     if AnimalPregnancyOverride.originalFunctions.animalCreatePregnancy and _G.FS25_RealisticLivestock and _G.FS25_RealisticLivestock.Animal then
         _G.FS25_RealisticLivestock.Animal.createPregnancy = AnimalPregnancyOverride.originalFunctions
+            .animalCreatePregnancy
             .animalCreatePregnancy
         RmUtils.logInfo("Animal.createPregnancy function restored")
     end
