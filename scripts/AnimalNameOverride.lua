@@ -3,7 +3,7 @@
 -- Overrides animals name to display genetics information
 --
 -- @author Ritter
--- @version 1.0.0.0
+-- @version 1.2.0.2
 --
 
 AnimalNameOverride = {}
@@ -273,5 +273,9 @@ function AnimalNameOverride.delete()
     end
 end
 
--- Apply the Animal getName override
-overrideAnimalGetName()
+---Applies the Animal getName override
+function AnimalNameOverride.initialize()
+    overrideAnimalGetName()
+end
+
+-- Override will be applied during RLAdjust initialization, not immediately

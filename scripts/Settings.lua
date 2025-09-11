@@ -3,7 +3,7 @@
 -- Handles loading and saving configuration from savegame folder
 --
 -- @author Ritter
--- @version 1.0.0.0
+-- @version 1.2.0.2
 --
 
 Settings = {}

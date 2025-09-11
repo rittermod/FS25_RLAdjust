@@ -3,11 +3,11 @@
 -- Mathematical functions for genetic inheritance calculations
 --
 -- @author Ritter
--- @version 1.0.0.0
+-- @version 1.2.0.2
 --
 
 BreedingMath = {}
-local BreedingMath_mt = Class(BreedingMath)
+-- local BreedingMath_mt = Class(BreedingMath) -- Unused: module contains only static functions
 
 -- Module constants
 -- Choose a constant within-family SD (here: 10% of range 0.25..1.75)
