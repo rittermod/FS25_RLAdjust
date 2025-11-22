@@ -102,6 +102,41 @@ local function setAnimalNameWithGenetics(animal, context, currentName)
         -- Default to long format
         qualityValue = string.format("%s-%s", overallRating, table.concat(detailTraits, ":"))
     end
+    if animal.diseases ~= nil and #animal.diseases > 0 then
+        -- Check for infected diseases
+        -- D if not treated
+        -- T if being treated
+        -- I if immune
+        -- C is carrier (not infected)
+        local anyImmune = false
+        local anyBeingTreated = false
+        local anyInfected = false
+        local anyCarrier = false
+
+        for _, disease in ipairs(animal.diseases) do
+            if disease.beingTreated then
+                anyBeingTreated = true
+            elseif disease.cured and disease.immunity > 0 then
+                anyImmune = true
+            elseif disease.isCarrier then
+                anyCarrier = true
+            elseif not disease.beingTreated then
+                anyInfected = true
+            end
+            RmUtils.logTrace(RmUtils.tableToString(disease))
+        end
+        local diseaseStatus = "" -- "Worst" status only
+        if anyInfected then
+            diseaseStatus = "D"
+        elseif anyBeingTreated then
+            diseaseStatus = "T"
+        elseif anyImmune then
+            diseaseStatus = "I"
+        elseif anyCarrier then
+            diseaseStatus = "C"
+        end
+        qualityValue = diseaseStatus .. "-" .. qualityValue
+    end
 
     -- Get current name (use provided name or get it from animal)
     if not currentName then
@@ -116,9 +151,9 @@ local function setAnimalNameWithGenetics(animal, context, currentName)
     -- Remove existing genetics information from name (handles both prefix and postfix)
     local cleanName = currentName
     -- Remove patterns like "[85-85:73:99:97] " from beginning or " [85-85:73:99:97]" from end
-    -- Pattern: [number] or [number-number:number:number:number] with optional spaces
-    cleanName = string.gsub(cleanName, "^%[[%d]+[%-:]*[%d:]*%] ?", "")
-    cleanName = string.gsub(cleanName, " ?%[[%d]+[%-:]*[%d:]*%]$", "")
+    -- Pattern: [number], [Dnumber] or [number-number:number:number:number] with optional spaces
+    cleanName = string.gsub(cleanName, "^%[[DTIC]?-?[%d]+[%-:]*[%d:]*%] ?", "")
+    cleanName = string.gsub(cleanName, " ?%[[DTIC]?-?[%d]+[%-:]*[%d:]*%]$", "")
     if cleanName ~= currentName then
         RmUtils.logTrace(string.format("Removed existing genetics from: '%s', clean name: '%s'", currentName, cleanName))
     end

@@ -8,7 +8,8 @@ A Farming Simulator 2025 mod that provides some adjustments to the [Realistic Li
 ## Overview
 
 This mod changes the Realistic Livestock experience by adding:
-- Automatically updating genetic information as part of the animal names 
+- Automatically updating genetic information as part of the animal names
+- Disease status indicators in animal names (D=infected, T=treating, I=immune, C=carrier)
 - Changes to the pregnancy system to generate more varied offspring
   - Randomized father selection from eligible candidates
   - Alternative genetic calculations for offspring traits, allowing for a wider range of potential outcomes
@@ -27,6 +28,11 @@ This mod changes the Realistic Livestock experience by adding:
 - **Configurable position**:
   - **Prefix**: `[85] Animal Name` (default)
   - **Postfix**: `Animal Name [85]`
+- **Disease status indicators** (shown when animal has diseases):
+  - `D` = infected (not being treated) - e.g., `[D-85]`
+  - `T` = being treated - e.g., `[T-85]`
+  - `I` = immune (cured with immunity) - e.g., `[I-85]`
+  - `C` = carrier (not infected) - e.g., `[C-85]`
 - Compatible with dealer, farm, and trailer animal interfaces + in-game menu
 
 ### Pregnancy System
