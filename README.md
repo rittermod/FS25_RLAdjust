@@ -34,6 +34,8 @@ This mod changes the Realistic Livestock experience by adding:
   - `T` = being treated - e.g., `[T-85]`
   - `I` = immune (cured with immunity) - e.g., `[I-85]`
   - `C` = carrier (not infected) - e.g., `[C-85]`
+- Sorting of animals by genetics in selection UIs
+  - Animals with higher genetics values appear first in dealer, farm, and trailer animal selection screens
 - Compatible with dealer, farm, and trailer animal interfaces + in-game menu
 
 ### Pregnancy System
@@ -62,6 +64,10 @@ The mod creates a configurable settings file in your savegame folder:
 #### geneticsFormat  
 - `"short"` - Shows only overall quality: `[85]` (default)
 - `"long"` - Shows detailed traits: `[85-85:73:99:97]`
+
+#### sortByGenetics
+- `true` - Sorts animals by genetics in selection UIs (default)
+- `false` - Default sorting by name
 
 ### Example Settings File
 
