@@ -21,6 +21,26 @@ AnimalNameOverride.originalFunctions = {}
 -- Reference to settings instance (will be set by main.lua)
 AnimalNameOverride.settings = nil
 
+---Extracts genetics information from an animal name
+---@param name string|nil The animal name potentially containing genetics info
+---@return string|nil The genetics string without brackets, or nil if not found
+local function extractGenetics(name)
+    if name == nil or name == "" then
+        return nil
+    end
+
+    -- Pattern matches: [D-85-45:73:99:97], [85], [T-85], etc.
+    -- Try to match at the beginning (prefix position)
+    local genetics = string.match(name, "^%[([DTIC]?-?[%d]+[%-:]*[%d:]*)%]")
+    if genetics then
+        return genetics
+    end
+
+    -- Try to match at the end (postfix position)
+    genetics = string.match(name, "%[([DTIC]?-?[%d]+[%-:]*[%d:]*)%]$")
+    return genetics
+end
+
 ---Constructs animal name with genetics quality information
 ---@param animal table The animal object containing genetics data
 ---@param context string Context identifier for logging purposes
@@ -179,6 +199,47 @@ local function setAnimalNameWithGenetics(animal, context, currentName)
     return true
 end
 
+---Sorts a list of items by their animal genetics
+---@param items table List of items to sort
+---@return table Sorted list of items
+local function sortByGenetics(items)
+    RmUtils.logDebug("Sorting items by animal genetics")
+    RmUtils.logTrace(string.format("Items before sorting: %s", RmUtils.tableToString(items)))
+    table.sort(items, function(a, b)
+        local nameA = ""
+        local nameB = ""
+        local subTypeA = ""
+        local subTypeB = ""
+
+        local animalA = a.animal or a.cluster
+        RmUtils.logTrace(string.format("Comparing animals: A=%s", RmUtils.tableToString(animalA)))
+        local animalB = b.animal or b.cluster
+        RmUtils.logTrace(string.format("Comparing animals: B=%s", RmUtils.tableToString(animalB)))
+        if animalA then
+            nameA = animalA.name or ""
+            subTypeA = animalA.subTypeIndex or ""
+        end
+        if animalB then
+            nameB = animalB.name or ""
+            subTypeB = animalB.subTypeIndex or ""
+        end
+
+        -- Compare by subType ascending
+        if subTypeA ~= subTypeB then
+            return subTypeA < subTypeB
+        end
+
+        -- If subType equal, compare genetics in name descending
+        if extractGenetics(nameA) ~= extractGenetics(nameB) then
+            return extractGenetics(nameA) > extractGenetics(nameB)
+        end
+        -- If names equal (case-insensitive), compare original names descending
+        return nameA > nameB
+    end)
+    RmUtils.logTrace(string.format("Items after sorting: %s", RmUtils.tableToString(items)))
+    return items
+end
+
 ---Adds genetics information to target items in animal screens
 ---@param self table The controller instance
 ---@param _ any Unused parameter from appended function
@@ -192,6 +253,11 @@ local function addGeneticsToTargetItems(self, _)
     for _, item in ipairs(self.targetItems) do
         local animal = item.animal or item.cluster
         setAnimalNameWithGenetics(animal, "target")
+    end
+
+    if AnimalNameOverride.settings and AnimalNameOverride.settings:getSortByGenetics() then
+        RmUtils.logDebug("Sorting target items by genetics as per settings")
+        self.targetItems = sortByGenetics(self.targetItems)
     end
 end
 
@@ -218,6 +284,12 @@ local function addGeneticsToSourceItems(self, _)
                     setAnimalNameWithGenetics(animal, "nested source")
                 end
             end
+            -- Now sort the nested items by genetics if enabled
+            if AnimalNameOverride.settings and AnimalNameOverride.settings:getSortByGenetics() then
+                RmUtils.logDebug("Sorting nested source items by genetics as per settings")
+                item = sortByGenetics(item)
+            end
+            self.sourceItems[key] = item
 
             -- Also try to process the item itself (in case it's a direct animal)
             -- Note: Not sure if this is needed, but keeping for safety
@@ -225,6 +297,7 @@ local function addGeneticsToSourceItems(self, _)
             setAnimalNameWithGenetics(animal, "direct source")
         end
     end
+    -- self.sourceItems = sortByName(self.sourceItems)
 end
 
 ---Overrides the FS25_RealisticLivestock Animal getName function to include genetics

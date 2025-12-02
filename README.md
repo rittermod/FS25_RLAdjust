@@ -9,6 +9,7 @@ A Farming Simulator 2025 mod that provides some adjustments to the [Realistic Li
 
 This mod changes the Realistic Livestock experience by adding:
 - Automatically updating genetic information as part of the animal names
+- Sorting animals by genetics in selection UIs. "Better" animals appear first.
 - Disease status indicators in animal names (D=infected, T=treating, I=immune, C=carrier)
 - Changes to the pregnancy system to generate more varied offspring
   - Randomized father selection from eligible candidates
