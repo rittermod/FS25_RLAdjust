@@ -1,5 +1,10 @@
 # Realistic Livestock Adjustments
 
+> [!CAUTION]
+> This mod is archived. All the functionality is now present in the full mod
+> https://github.com/rittermod/FS25_RealisticLivestockRM
+
+----------
 A Farming Simulator 2025 mod that provides some adjustments to the [Realistic Livestock](https://github.com/Arrow-kb/FS25_RealisticLivestock) mod.
 
 > [!CAUTION]
